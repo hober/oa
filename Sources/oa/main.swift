@@ -75,9 +75,9 @@ struct OA: ParsableCommand {
       if !quiet {
         if let path = CFURLCopyFileSystemPath(located,
           CFURLPathStyle.cfurlposixPathStyle) {
-          print("Launching \(path)")
+          print("\(path)")
         } else {
-          print("Launching \(located)")
+          print("\(located)")
         }
       }
       return 0

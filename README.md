@@ -1,1 +1,5 @@
-Trying to translate my `oa` Python script to Swift.
+# oa
+
+This began life as a shell alias for `open -a`. Eventually I wrote a replacement in Python, because I wanted it to be able to also do the equivalent of `which` but for Mac apps.
+
+I eventually translated it to Swift to speed it up.

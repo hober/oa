@@ -13,6 +13,9 @@ struct OA: ParsableCommand {
   var apps: [String]
 
   func log(_ result: OSStatus, _ app: Any) {
+    if quiet {
+      return
+    }
     switch result {
     case kLSAppInTrashErr:
       CFShow("Error: The application '\(app)' cannot be run because it is inside a Trash folder." as CFString)
@@ -97,11 +100,17 @@ struct OA: ParsableCommand {
     for app in apps {
       if which {
         guard locate(app: app) == 0 else {
-          throw OAError.couldNotLocate
+          if !quiet {
+            throw OAError.couldNotLocate
+          }
+          return
         }
       } else {
         guard launch(app: app) == 0 else {
-          throw OAError.couldNotLaunch
+          if !quiet {
+            throw OAError.couldNotLaunch
+          }
+          return
         }
       }
     }

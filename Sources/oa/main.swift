@@ -12,65 +12,42 @@ struct OA: ParsableCommand {
   @Argument(help: "the applications to run")
   var apps: [String]
 
-  func log(_ result: OSStatus) {
+  func log(_ result: OSStatus, _ app: Any) {
     switch result {
     case kLSAppInTrashErr:
-      CFShow("The application cannot be run because it is inside a Trash folder." as CFString)
-    case kLSUnknownErr:
-      CFShow("An unknown error has occurred." as CFString)
-    case kLSNotAnApplicationErr:
-      CFShow("The item to be registered is not an application." as CFString)
-    case kLSNotInitializedErr:
-      CFShow("Formerly returned by LSInit on initialization failure; no longer used." as CFString)
-    case kLSDataUnavailableErr:
-      CFShow("Data of the desired type is not available (for example, there is no kind string as CFString)." as CFString)
+      CFShow("Error: The application '\(app)' cannot be run because it is inside a Trash folder." as CFString)
     case kLSApplicationNotFoundErr:
-      CFShow("No application in the Launch Services database matches the input criteria." as CFString)
-    case kLSUnknownTypeErr:
-      CFShow("Not currently used." as CFString)
-    case kLSDataTooOldErr:
-      CFShow("Not currently used." as CFString)
-    case kLSDataErr:
-      CFShow("Data is structured improperly (for example, an item’s information property list is malformed as CFString). Not used in macOS 10.4." as CFString)
+      CFShow("Error: No application in the Launch Services database matches the input criteria  '\(app)'." as CFString)
     case kLSLaunchInProgressErr:
-      CFShow("A launch of the application is already in progress." as CFString)
-    case kLSNotRegisteredErr:
-      CFShow("Not currently used." as CFString)
-    case kLSAppDoesNotClaimTypeErr:
-      CFShow("Not currently used." as CFString)
-    case kLSAppDoesNotSupportSchemeWarning:
-      CFShow("Not currently used." as CFString)
+      CFShow("Error: A launch of the application '\(app)' is already in progress." as CFString)
     case kLSServerCommunicationErr:
-      CFShow("There is a problem communicating with the server process that maintains the Launch Services database." as CFString)
-    case kLSCannotSetInfoErr:
-      CFShow("The filename extension to be hidden cannot be hidden." as CFString)
-    case kLSNoRegistrationInfoErr:
-      CFShow("Not currently used." as CFString)
+      CFShow("Error: There is a problem communicating with the server process that maintains the Launch Services database." as CFString)
     case kLSIncompatibleSystemVersionErr:
-      CFShow("The application to be launched cannot run on the current Mac OS version." as CFString)
+      CFShow("Error: The application '\(app)' cannot run on the current macOS version." as CFString)
     case kLSNoLaunchPermissionErr:
-      CFShow("The user does not have permission to launch the application (on a managed network as CFString)." as CFString)
+      CFShow("Error: The user does not have permission to launch the application '\(app)' (on a managed network)." as CFString)
     case kLSNoExecutableErr:
-      CFShow("The executable file is missing or has an unusable format." as CFString)
+      CFShow("Error: The executable file in '\(app)' is missing or has an unusable format." as CFString)
     case kLSNoClassicEnvironmentErr:
-      CFShow("The Classic emulation environment was required but is not available." as CFString)
+      CFShow("Error: The Classic emulation environment was required for '\(app)' but is not available." as CFString)
     case kLSMultipleSessionsNotSupportedErr:
-      CFShow("The application to be launched cannot run simultaneously in two different user sessions." as CFString)
+      CFShow("Error: The application to be launched '\(app)' cannot run simultaneously in two different user sessions." as CFString)
     default:
-      CFShow("Who the fuck knows" as CFString)
+      CFShow("Error: An unknown error with '\(app)' has occurred." as CFString)
     }
   }
 
-  func locate(_ app: CFString) -> CFURL? {
+  func locate(_ app: String) -> CFURL? {
     var url: Unmanaged<CFURL>?
-    let status = LSFindApplicationForInfo(kLSUnknownCreator, nil, app, nil, &url)
+    let status = LSFindApplicationForInfo(kLSUnknownCreator, nil,
+      "\(app).app" as CFString, nil, &url)
     if status != 0 {
-      log(status)
+      log(status, app)
     }
     return url?.takeRetainedValue()
   }
 
-  func locate(app: CFString) -> Int {
+  func locate(app: String) -> Int {
     if let located = locate(app) {
       if !quiet {
         if let path = CFURLCopyFileSystemPath(located,
@@ -86,7 +63,7 @@ struct OA: ParsableCommand {
     }
   }
 
-  func launch(app: CFString) -> Int32 {
+  func launch(app: String) -> Int32 {
     var launched: Unmanaged<CFURL>?
     if let located = locate(app) {
       if !quiet {
@@ -99,7 +76,7 @@ struct OA: ParsableCommand {
       }
       let status = LSOpenCFURLRef(located, &launched)
       if status != 0 {
-        log(status)
+        log(status, located)
       }
       return status as Int32
     } else {
@@ -119,11 +96,11 @@ struct OA: ParsableCommand {
 
     for app in apps {
       if which {
-        guard locate(app: "\(app).app" as CFString) == 0 else {
+        guard locate(app: app) == 0 else {
           throw OAError.couldNotLocate
         }
       } else {
-        guard launch(app: "\(app).app" as CFString) == 0 else {
+        guard launch(app: app) == 0 else {
           throw OAError.couldNotLaunch
         }
       }

@@ -50,7 +50,7 @@ struct OA: ParsableCommand {
     return url?.takeRetainedValue()
   }
 
-  func locate(app: String) -> Int {
+  func locate(app: String) -> Int32 {
     if let located = locate(app) {
       if !quiet {
         if let path = CFURLCopyFileSystemPath(located,
@@ -60,9 +60,9 @@ struct OA: ParsableCommand {
           print("\(located)")
         }
       }
-      return 0
+      return EXIT_SUCCESS
     } else {
-      return 1
+      return EXIT_FAILURE
     }
   }
 
@@ -83,7 +83,7 @@ struct OA: ParsableCommand {
       }
       return status as Int32
     } else {
-      return 1
+      return EXIT_FAILURE
     }
   }
 
@@ -103,14 +103,14 @@ struct OA: ParsableCommand {
           if !quiet {
             throw OAError.couldNotLocate
           }
-          return
+          Foundation.exit(EXIT_FAILURE)
         }
       } else {
         guard launch(app: app) == 0 else {
           if !quiet {
             throw OAError.couldNotLaunch
           }
-          return
+          Foundation.exit(EXIT_FAILURE)
         }
       }
     }

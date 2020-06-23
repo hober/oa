@@ -3,11 +3,11 @@
 .build/release/oa build: Sources/oa/main.swift
 	xcrun swift build -c release
 
-# $sysname is set in my shell config; it's where I put binaries I've
-# built myself
+# $SYSNAME is set in my shell config; it's where I put binaries I've
+# built myself.
 install: .build/release/oa
-	mkdir -p ~/${sysname}/bin
-	cp .build/release/oa ~/${sysname}/bin
+	mkdir -p ~/${SYSNAME}/bin
+	cp .build/release/oa ~/${SYSNAME}/bin
 
 clean:
 	rm -f *~ .build/release/oa

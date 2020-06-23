@@ -3,10 +3,10 @@
 import PackageDescription
 
 let package = Package(
-  name: "floobin",
+  name: "OA",
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser",
-      from: "0.0.1"),
+      from: "0.2.0"),
   ],
   targets: [
     .target(

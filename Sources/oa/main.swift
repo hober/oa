@@ -5,12 +5,12 @@ import ArgumentParser
 
 struct OA: ParsableCommand {
   @Flag(name: .shortAndLong, help: "suppress all output")
-  var quiet: Bool
+  var quiet: Bool = false
   @Flag(name: [.customShort("d"), .long],
     help: "just locate the app (don't launch it)")
-  var which: Bool
+  var which: Bool = false
   @Argument(help: "the applications to run")
-  var apps: [String]
+  var apps: [String] = []
 
   func log(_ result: OSStatus, _ app: Any) {
     if quiet {

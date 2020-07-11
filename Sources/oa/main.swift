@@ -4,12 +4,12 @@ import CoreServices
 import ArgumentParser
 
 struct OA: ParsableCommand {
-  @Flag(name: .shortAndLong, help: "suppress all output")
+  @Flag(name: .shortAndLong, help: "Suppress all output.")
   var quiet: Bool = false
   @Flag(name: [.customShort("d"), .long],
-    help: "just locate the app (don't launch it)")
+    help: "Just locate the app; don't launch it.")
   var which: Bool = false
-  @Argument(help: "the applications to run")
+  @Argument(help: "The applications to run.")
   var apps: [String] = []
 
   func log(_ result: OSStatus, _ app: Any) {

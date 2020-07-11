@@ -4,12 +4,32 @@ import CoreServices
 import ArgumentParser
 
 struct OA: ParsableCommand {
-  @Flag(name: .shortAndLong, help: "Suppress all output.")
-  var quiet: Bool = false
-  @Flag(name: [.customShort("d"), .long],
-    help: "Just locate the app; don't launch it.")
+  static let configuration = CommandConfiguration(
+    abstract: "Launch apps by name.",
+    discussion: """
+Exits successfully if all the apps launch successfully.
+Exits with an error code if an app could not be found or could not be run.
+""")
+
+  @Flag(name: [.customShort("d"), .long], help: ArgumentHelp(
+      "Just locate the app; don't launch it.",
+      discussion: """
+For when you want to know where an app is on the filesystem.
+Combine with -q to test for the existence of an app from a shell script.
+"""
+    ))
   var which: Bool = false
-  @Argument(help: "The applications to run.")
+
+  @Flag(name: .shortAndLong, help: ArgumentHelp(
+      "Suppress all output.",
+      discussion: """
+Check the exit code to know if the app was found and/or launched.
+"""))
+  var quiet: Bool = false
+
+  @Argument(help: ArgumentHelp(
+      "The applications to run.",
+      discussion: "You must specify at least one app to run."))
   var apps: [String] = []
 
   func log(_ result: OSStatus, _ app: Any) {

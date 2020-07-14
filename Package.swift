@@ -9,8 +9,8 @@ let package = Package(
       from: "0.2.0"),
   ],
   targets: [
-    .target(
-      name: "oa",
-      dependencies: ["ArgumentParser"]),
+    .target(name: "oa", dependencies: [
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ]),
   ]
 )

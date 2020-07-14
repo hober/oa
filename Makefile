@@ -6,14 +6,18 @@
 docs:
 	jazzy --output Documentation --min-acl internal
 
-# $SYSNAME is set in my shell config; it's where I put binaries I've
-# built myself.
+MACHTYPE = $(shell uname -m | tr '[:upper:]' '[:lower:]')
+OSTYPE = $(shell uname -s | tr '[:upper:]' '[:lower:]')
+PREFIX ?= ~/$(MACHTYPE)-$(OSTYPE)
+EXEC_PREFIX ?= $(PREFIX)
+BINDIR ?= $(EXEC_PREFIX)/bin
+
 install: .build/release/oa
-	mkdir -p ~/${SYSNAME}/bin
-	cp .build/release/oa ~/${SYSNAME}/bin
+	@mkdir -p $(BINDIR)
+	cp .build/release/oa $(BINDIR)
 
 clean:
-	rm -f .build/release/oa
+	rm -rf .build/release/oa*
 
-pristine: clean
+pristine:
 	rm -rf .build Documentation Package.resolved

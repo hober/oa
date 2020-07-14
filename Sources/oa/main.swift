@@ -6,7 +6,7 @@ import ArgumentParser
 
 /// A TextOutputStream that writes to stderr.
 struct StandardError: TextOutputStream {
-  // Write to stderr.
+  /// Write to stderr.
   mutating func write(_ string: String) {
     fputs(string, Darwin.stderr)
   }
@@ -49,84 +49,106 @@ Check the exit code to know if the app was found and/or launched.
       discussion: "You must specify at least one app."))
   var apps: [String] = []
 
-  /// Log a LocationServices error.
-  func log(_ result: OSStatus, _ app: Any) {
+  /**
+    Log a LocationServices error.
+
+    - Parameter result: The status code to log.
+    - Parameter app: The app in question.
+  */
+  func logError(_ result: OSStatus, _ app: Any) {
     if quiet {
       return
     }
     switch result {
     case kLSAppInTrashErr:
-      print("Error: The application '\(app)' cannot be run because it is inside a Trash folder.", to: &stderr)
+      print("oa: '\(app)' cannot be run because it is in the Trash.", to: &stderr)
     case kLSApplicationNotFoundErr:
-      print("Error: No application in the Launch Services database matches the input criteria  '\(app)'.", to: &stderr)
+      print("oa: Launch Services doesn't know of an app named '\(app)'.", to: &stderr)
     case kLSLaunchInProgressErr:
-      print("Error: A launch of the application '\(app)' is already in progress.", to: &stderr)
+      print("oa: '\(app)' is already being launched.", to: &stderr)
     case kLSServerCommunicationErr:
-      print("Error: There is a problem communicating with the server process that maintains the Launch Services database.", to: &stderr)
+      print("oa: Failed to communicate with the Launch Services database.", to: &stderr)
     case kLSIncompatibleSystemVersionErr:
-      print("Error: The application '\(app)' cannot run on the current macOS version.", to: &stderr)
+      print("oa: '\(app)' can't run on this version of macOS.", to: &stderr)
     case kLSNoLaunchPermissionErr:
-      print("Error: The user does not have permission to launch the application '\(app)' (on a managed network).", to: &stderr)
+      print("oa: You don't have permission to launch '\(app)' (on a managed network).", to: &stderr)
     case kLSNoExecutableErr:
-      print("Error: The executable file in '\(app)' is missing or has an unusable format.", to: &stderr)
+      print("oa: '\(app)' is corrupted and can't be run.", to: &stderr)
     case kLSNoClassicEnvironmentErr:
-      print("Error: The Classic emulation environment was required for '\(app)' but is not available.", to: &stderr)
+      print("oa: Classic apps like '\(app)' can no longer be run.", to: &stderr)
     case kLSMultipleSessionsNotSupportedErr:
-      print("Error: The application to be launched '\(app)' cannot run simultaneously in two different user sessions.", to: &stderr)
+      print("oa: '\(app)' can't be run because another user is already running it.", to: &stderr)
     default:
-      print("Error: An unknown error with '\(app)' has occurred.", to: &stderr)
+      print("oa: An unknown error with '\(app)' has occurred.", to: &stderr)
     }
   }
 
-  /// Given an app name, returns a CFURL to its location.
-  func urlForApp(_ app: String) -> CFURL? {
+  /**
+    Return a URL for the given app.
+
+    - Parameter app: The app to locate.
+    - Returns: a `CFURL` to the app, or `nil` if it was not found.
+  */
+  func urlForApp(_ app: String) -> (OSStatus, CFURL?) {
     let filename = "\(app).app" as! CFString
     var url: Unmanaged<CFURL>?
     let status = LSFindApplicationForInfo(kLSUnknownCreator, nil,
       filename, nil, &url)
+    return (status, url?.takeRetainedValue())
+  }
+
+  /**
+    Locate the given app.
+
+    - Parameter app: The app to locate.
+    - Returns: A status code.
+  */
+  func locate(_ app: String) -> OSStatus {
+    let (status, located) = urlForApp(app)
+    if located != nil {
+      if !quiet {
+        if let path = CFURLCopyFileSystemPath(located,
+          CFURLPathStyle.cfurlposixPathStyle) {
+          print("\(String(describing:path))")
+        } else {
+          print("\(String(describing:located))")
+        }
+      }
+    }
     if status != 0 {
-      log(status, app)
+      logError(status, app)
     }
-    return url?.takeRetainedValue()
+    return status
   }
 
-  /// Locate the given app.
-  func locate(_ app: String) -> Int32 {
-    if let located = urlForApp(app) {
-      if !quiet {
-        if let path = CFURLCopyFileSystemPath(located,
-          CFURLPathStyle.cfurlposixPathStyle) {
-          print("\(path)")
-        } else {
-          print("\(located)")
-        }
-      }
-      return EXIT_SUCCESS
-    } else {
-      return EXIT_FAILURE
-    }
-  }
+  /**
+    Launch the given app.
 
-  /// Launch the given app.
-  func launch(_ app: String) -> Int32 {
+    - Parameter app: The app to launch.
+    - Returns: `EXIT_SUCCESS` or `EXIT_FAILURE`.
+  */
+  func launch(_ app: String) -> OSStatus {
     var launched: Unmanaged<CFURL>?
-    if let located = urlForApp(app) {
+    let (locateStatus, located) = urlForApp(app)
+    if located != nil {
       if !quiet {
         if let path = CFURLCopyFileSystemPath(located,
           CFURLPathStyle.cfurlposixPathStyle) {
-          print("Launching \(path)")
+          print("Launching \(String(describing:path))")
         } else {
-          print("Launching \(located)")
+          print("Launching \(String(describing:located))")
         }
       }
-      let status = LSOpenCFURLRef(located, &launched)
-      if status != 0 {
-        log(status, located)
+      let launchStatus = LSOpenCFURLRef(located!, &launched)
+      if launchStatus != 0 {
+        logError(launchStatus, app)
       }
-      return status as Int32
-    } else {
-      return EXIT_FAILURE
+      return launchStatus
     }
+    if locateStatus != 0 {
+      logError(locateStatus, app)
+    }
+    return locateStatus
   }
 
   /// Validate command line arguments.
@@ -139,11 +161,12 @@ Check the exit code to know if the app was found and/or launched.
 
   /// Run the command.
   func run() {
-    let operation: (String) -> Int32 = which ? locate : launch;
+    let operation: (String) -> OSStatus = which ? locate : launch;
 
     for app in apps {
-      guard operation(app) == 0 else {
-        Darwin.exit(EXIT_FAILURE)
+      let status = operation(app)
+      guard status == 0 else {
+        Darwin.exit(status as Int32)
       }
     }
 

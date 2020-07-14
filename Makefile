@@ -13,7 +13,7 @@ install: .build/release/oa
 	cp .build/release/oa ~/${SYSNAME}/bin
 
 clean:
-	rm -f *~ .build/release/oa
+	rm -f .build/release/oa
 
 pristine: clean
 	rm -rf .build Documentation Package.resolved

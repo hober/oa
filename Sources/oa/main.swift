@@ -89,7 +89,7 @@ Check the exit code to know if the app was found and/or launched.
     - Parameter app: The app to locate.
     - Returns: a `CFURL` to the app, or `nil` if it was not found.
   */
-  func urlForApp(_ app: String) -> (OSStatus, CFURL?) {
+  func url(forApp app: String) -> (OSStatus, CFURL?) {
     let filename = "\(app).app" as! CFString
     var url: Unmanaged<CFURL>?
     // This is deprecated, but I don't know of any other macOS API that,
@@ -124,7 +124,7 @@ Check the exit code to know if the app was found and/or launched.
     - Returns: A status code.
   */
   func locate(_ app: String) -> OSStatus {
-    let (status, appLocated) = urlForApp(app)
+    let (status, appLocated) = url(forApp: app)
 
     if appLocated != nil && !quiet {
       printPath(fromURL: appLocated!)
@@ -140,7 +140,7 @@ Check the exit code to know if the app was found and/or launched.
     - Returns: `EXIT_SUCCESS` or `EXIT_FAILURE`.
   */
   func launch(_ app: String) -> OSStatus {
-    let (status, appToLaunch) = urlForApp(app)
+    let (status, appToLaunch) = url(forApp: app)
 
     guard appToLaunch != nil else {
       return status

@@ -56,7 +56,7 @@ Check the exit code to know if the app was found and/or launched.
     - Parameter app: The app in question.
   */
   func logError(_ result: OSStatus, _ app: Any) {
-    if quiet {
+    guard !quiet else {
       return
     }
     switch result {
@@ -92,9 +92,29 @@ Check the exit code to know if the app was found and/or launched.
   func urlForApp(_ app: String) -> (OSStatus, CFURL?) {
     let filename = "\(app).app" as! CFString
     var url: Unmanaged<CFURL>?
+    // This is deprecated, but I don't know of any other macOS API that,
+    // given a string "foo.app", will tell you where the app is.
     let status = LSFindApplicationForInfo(kLSUnknownCreator, nil,
       filename, nil, &url)
     return (status, url?.takeRetainedValue())
+  }
+
+  /**
+    Print the file system path corresponding to `url`.
+
+    - Parameter url: The URL to convert to a path for printing.
+    - Parameter prefix: A prefix to prepend to the printed output.
+  */
+  func printPath(fromURL url: CFURL, withPrefix prefix: String = "") {
+    if let path = CFURLCopyFileSystemPath(url,
+      CFURLPathStyle.cfurlposixPathStyle) {
+      print("\(prefix)\(String(describing:path))")
+    } else if !quiet { // I don't think this ever happens.
+      print("""
+        oa: don't know how to convert \(String(describing:url)) into \
+        a file system path.
+        """, to: &stderr)
+    }
   }
 
   /**
@@ -104,20 +124,12 @@ Check the exit code to know if the app was found and/or launched.
     - Returns: A status code.
   */
   func locate(_ app: String) -> OSStatus {
-    let (status, located) = urlForApp(app)
-    if located != nil {
-      if !quiet {
-        if let path = CFURLCopyFileSystemPath(located,
-          CFURLPathStyle.cfurlposixPathStyle) {
-          print("\(String(describing:path))")
-        } else {
-          print("\(String(describing:located))")
-        }
-      }
+    let (status, appLocated) = urlForApp(app)
+
+    if appLocated != nil && !quiet {
+      printPath(fromURL: appLocated!)
     }
-    if status != 0 {
-      logError(status, app)
-    }
+
     return status
   }
 
@@ -128,34 +140,25 @@ Check the exit code to know if the app was found and/or launched.
     - Returns: `EXIT_SUCCESS` or `EXIT_FAILURE`.
   */
   func launch(_ app: String) -> OSStatus {
+    let (status, appToLaunch) = urlForApp(app)
+
+    guard appToLaunch != nil else {
+      return status
+    }
+
+    if !quiet {
+      printPath(fromURL: appToLaunch!, withPrefix: "Launching ")
+    }
+
     var launched: Unmanaged<CFURL>?
-    let (locateStatus, located) = urlForApp(app)
-    if located != nil {
-      if !quiet {
-        if let path = CFURLCopyFileSystemPath(located,
-          CFURLPathStyle.cfurlposixPathStyle) {
-          print("Launching \(String(describing:path))")
-        } else {
-          print("Launching \(String(describing:located))")
-        }
-      }
-      let launchStatus = LSOpenCFURLRef(located!, &launched)
-      if launchStatus != 0 {
-        logError(launchStatus, app)
-      }
-      return launchStatus
-    }
-    if locateStatus != 0 {
-      logError(locateStatus, app)
-    }
-    return locateStatus
+    return LSOpenCFURLRef(appToLaunch!, &launched)
   }
 
   /// Validate command line arguments.
   func validate() {
     guard !apps.isEmpty else {
-      let error = ValidationError("You must specify at least one app to run.")
-      OA.exit(withError: error)
+      OA.exit(withError:
+        ValidationError("You must specify at least one app to run."))
     }
   }
 
@@ -165,7 +168,7 @@ Check the exit code to know if the app was found and/or launched.
 
     for app in apps {
       let status = operation(app)
-      guard status == 0 else {
+      guard status == EXIT_SUCCESS else {
         Darwin.exit(status as Int32)
       }
     }

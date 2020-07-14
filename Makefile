@@ -16,4 +16,4 @@ clean:
 	rm -f *~ .build/release/oa
 
 pristine: clean
-	rm -rf .build Package.resolved
+	rm -rf .build Documentation Package.resolved

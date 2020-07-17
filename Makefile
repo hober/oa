@@ -1,7 +1,15 @@
 .PHONY: build docs install clean pristine
 
-.build/release/oa build: Sources/oa/main.swift
-	xcrun swift build -c release
+BINARY=.build/release/oa
+
+ifeq ($(shell uname -s),Linux)
+  SWIFT=swift
+else
+  SWIFT=xcrun swift
+endif
+
+$(BINARY) build: Sources/oa/main.swift
+	$(SWIFT) build -c release
 
 docs:
 	jazzy --output Documentation --min-acl internal
@@ -12,12 +20,12 @@ PREFIX ?= ~/$(MACHTYPE)-$(OSTYPE)
 EXEC_PREFIX ?= $(PREFIX)
 BINDIR ?= $(EXEC_PREFIX)/bin
 
-install: .build/release/oa
+install: $(BINARY)
 	@mkdir -p $(BINDIR)
-	cp .build/release/oa $(BINDIR)
+	cp $(BINARY) $(BINDIR)
 
 clean:
-	rm -rf .build/release/oa*
+	rm -rf $(BINARY)*
 
 pristine:
 	rm -rf .build Documentation Package.resolved

@@ -1,19 +1,36 @@
 import CoreFoundation
+import Foundation
+
+#if os(Linux)
+import var Glibc.stderr
+import func Glibc.exit
+import func Glibc.fputs
+import let Glibc.EXIT_SUCCESS
+import let Glibc.EXIT_FAILURE
+#else
 import CoreServices
-import Darwin
+import var Darwin.stderr
+import func Darwin.exit
+import func Darwin.fputs
+import let Darwin.EXIT_SUCCESS
+import let Darwin.EXIT_FAILURE
+#endif
 
 import ArgumentParser
+
+/// Exit the application.
+let libcExit = exit
 
 /// A TextOutputStream that writes to stderr.
 struct StandardError: TextOutputStream {
   /// Write to stderr.
   mutating func write(_ string: String) {
-    fputs(string, Darwin.stderr)
+    fputs(string, stderr)
   }
 }
 
 /// An instance of `StandardError`.
-var stderr = StandardError()
+var standardError = StandardError()
 
 /// The `oa` command itself.
 struct OA: ParsableCommand {
@@ -60,26 +77,28 @@ Check the exit code to know if the app was found and/or launched.
       return
     }
     switch result {
+#if !os(Linux)
     case kLSAppInTrashErr:
-      print("oa: '\(app)' cannot be run because it is in the Trash.", to: &stderr)
+      print("oa: '\(app)' cannot be run because it is in the Trash.", to: &standardError)
     case kLSApplicationNotFoundErr:
-      print("oa: Launch Services doesn't know of an app named '\(app)'.", to: &stderr)
+      print("oa: Launch Services doesn't know of an app named '\(app)'.", to: &standardError)
     case kLSLaunchInProgressErr:
-      print("oa: '\(app)' is already being launched.", to: &stderr)
+      print("oa: '\(app)' is already being launched.", to: &standardError)
     case kLSServerCommunicationErr:
-      print("oa: Failed to communicate with the Launch Services database.", to: &stderr)
+      print("oa: Failed to communicate with the Launch Services database.", to: &standardError)
     case kLSIncompatibleSystemVersionErr:
-      print("oa: '\(app)' can't run on this version of macOS.", to: &stderr)
+      print("oa: '\(app)' can't run on this version of macOS.", to: &standardError)
     case kLSNoLaunchPermissionErr:
-      print("oa: You don't have permission to launch '\(app)' (on a managed network).", to: &stderr)
+      print("oa: You don't have permission to launch '\(app)' (on a managed network).", to: &standardError)
     case kLSNoExecutableErr:
-      print("oa: '\(app)' is corrupted and can't be run.", to: &stderr)
+      print("oa: '\(app)' is corrupted and can't be run.", to: &standardError)
     case kLSNoClassicEnvironmentErr:
-      print("oa: Classic apps like '\(app)' can no longer be run.", to: &stderr)
+      print("oa: Classic apps like '\(app)' can no longer be run.", to: &standardError)
     case kLSMultipleSessionsNotSupportedErr:
-      print("oa: '\(app)' can't be run because another user is already running it.", to: &stderr)
+      print("oa: '\(app)' can't be run because another user is already running it.", to: &standardError)
+#endif
     default:
-      print("oa: An unknown error with '\(app)' has occurred.", to: &stderr)
+      print("oa: An unknown error with '\(app)' has occurred.", to: &standardError)
     }
   }
 
@@ -89,6 +108,39 @@ Check the exit code to know if the app was found and/or launched.
     - Parameter app: The app to locate.
     - Returns: a `CFURL` to the app, or `nil` if it was not found.
   */
+#if os(Linux)
+  func url(forApp app: String) -> (OSStatus, URL?) {
+    let fm = FileManager.default
+
+    guard let path = ProcessInfo.processInfo.environment["PATH"] else {
+      libcExit(EXIT_FAILURE)
+    }
+
+    for dir in path.components(separatedBy: ":") {
+      let dirURL = URL(fileURLWithPath: dir)
+      do {
+        let items = try fm.contentsOfDirectory(atPath: dir)
+        for item in items {
+          let itemURL = dirURL.appendingPathComponent(item, isDirectory:
+            false)
+          if item == app {
+            return (EXIT_SUCCESS as OSStatus, itemURL)
+          }
+        }
+      } catch {
+        if !quiet {
+          print("Unexpected error: \(error)", to:&standardError)
+        }
+        libcExit(EXIT_FAILURE)
+      }
+    }
+
+    if !quiet {
+      print("Command not found: \(app)", to:&standardError)
+    }
+    libcExit(EXIT_FAILURE)
+  }
+#else
   func url(forApp app: String) -> (OSStatus, CFURL?) {
     let filename = "\(app).app" as! CFString
     var url: Unmanaged<CFURL>?
@@ -98,6 +150,7 @@ Check the exit code to know if the app was found and/or launched.
       filename, nil, &url)
     return (status, url?.takeRetainedValue())
   }
+#endif
 
   /**
     Print the file system path corresponding to `url`.
@@ -113,8 +166,18 @@ Check the exit code to know if the app was found and/or launched.
       print("""
         oa: don't know how to convert \(String(describing:url)) into \
         a file system path.
-        """, to: &stderr)
+        """, to: &standardError)
     }
+  }
+
+  /**
+    Print the file system path corresponding to `url`.
+
+    - Parameter url: The URL to convert to a path for printing.
+    - Parameter prefix: A prefix to prepend to the printed output.
+  */
+  func printPath(fromURL url: URL, withPrefix prefix: String = "") {
+    print("\(prefix)\(url.path)")
   }
 
   /**
@@ -150,8 +213,28 @@ Check the exit code to know if the app was found and/or launched.
       printPath(fromURL: appToLaunch!, withPrefix: "Launching ")
     }
 
+#if os(Linux)
+    do {
+      let task = Process()
+      task.executableURL = appToLaunch
+      task.arguments = []
+      try task.run()
+
+      let graphical = ProcessInfo.processInfo.environment["XDG_CURRENT_DESKTOP"] != nil
+      // We should wait for command-line tasks to complete, but if we've
+      // launched graphical programs, we don't need to wait.
+      if !graphical {
+        task.waitUntilExit()
+      }
+    } catch {
+      OA.exit(withError:
+        ValidationError("Invalid command: \(app)"))
+    }
+    return EXIT_SUCCESS as OSStatus
+#else
     var launched: Unmanaged<CFURL>?
     return LSOpenCFURLRef(appToLaunch!, &launched)
+#endif
   }
 
   /// Validate command line arguments.
@@ -169,11 +252,11 @@ Check the exit code to know if the app was found and/or launched.
     for app in apps {
       let status = operation(app)
       guard status == EXIT_SUCCESS else {
-        Darwin.exit(status as Int32)
+        libcExit(status as Int32)
       }
     }
 
-    Darwin.exit(EXIT_SUCCESS)
+    libcExit(EXIT_SUCCESS)
   }
 }
 

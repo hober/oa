@@ -76,29 +76,30 @@ Check the exit code to know if the app was found and/or launched.
     guard !quiet else {
       return
     }
+    let prefix = "oa:"
     switch result {
 #if !os(Linux)
     case kLSAppInTrashErr:
-      print("oa: '\(app)' cannot be run because it is in the Trash.", to: &standardError)
+      print(prefix, "'\(app)' cannot be run because it is in the Trash.", to: &standardError)
     case kLSApplicationNotFoundErr:
-      print("oa: Launch Services doesn't know of an app named '\(app)'.", to: &standardError)
+      print(prefix, "Launch Services doesn't know of an app named '\(app)'.", to: &standardError)
     case kLSLaunchInProgressErr:
-      print("oa: '\(app)' is already being launched.", to: &standardError)
+      print(prefix, "'\(app)' is already being launched.", to: &standardError)
     case kLSServerCommunicationErr:
-      print("oa: Failed to communicate with the Launch Services database.", to: &standardError)
+      print(prefix, "Failed to communicate with the Launch Services database.", to: &standardError)
     case kLSIncompatibleSystemVersionErr:
-      print("oa: '\(app)' can't run on this version of macOS.", to: &standardError)
+      print(prefix, "'\(app)' can't run on this version of macOS.", to: &standardError)
     case kLSNoLaunchPermissionErr:
-      print("oa: You don't have permission to launch '\(app)' (on a managed network).", to: &standardError)
+      print(prefix, "You don't have permission to launch '\(app)' (on a managed network).", to: &standardError)
     case kLSNoExecutableErr:
-      print("oa: '\(app)' is corrupted and can't be run.", to: &standardError)
+      print(prefix, "'\(app)' is corrupted and can't be run.", to: &standardError)
     case kLSNoClassicEnvironmentErr:
-      print("oa: Classic apps like '\(app)' can no longer be run.", to: &standardError)
+      print(prefix, "Classic apps like '\(app)' can no longer be run.", to: &standardError)
     case kLSMultipleSessionsNotSupportedErr:
-      print("oa: '\(app)' can't be run because another user is already running it.", to: &standardError)
+      print(prefix, "'\(app)' can't be run because another user is already running it.", to: &standardError)
 #endif
     default:
-      print("oa: An unknown error with '\(app)' has occurred.", to: &standardError)
+      print(prefix, "An unknown error with '\(app)' has occurred.", to: &standardError)
     }
   }
 
@@ -247,11 +248,13 @@ Check the exit code to know if the app was found and/or launched.
 
   /// Run the command.
   func run() {
-    let operation: (String) -> OSStatus = which ? locate : launch;
+    // let operation: (String) -> OSStatus = which ? locate : launch;
+    let operation = which ? locate : launch;
 
     for app in apps {
       let status = operation(app)
       guard status == EXIT_SUCCESS else {
+        logError(status, app)
         libcExit(status as Int32)
       }
     }

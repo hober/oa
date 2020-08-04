@@ -82,7 +82,7 @@ Check the exit code to know if the app was found and/or launched.
     case kLSAppInTrashErr:
       print(prefix, "'\(app)' cannot be run because it is in the Trash.", to: &standardError)
     case kLSApplicationNotFoundErr:
-      print(prefix, "Launch Services doesn't know of an app named '\(app)'.", to: &standardError)
+      print(prefix, "Unknown app '\(app)'.", to: &standardError)
     case kLSLaunchInProgressErr:
       print(prefix, "'\(app)' is already being launched.", to: &standardError)
     case kLSServerCommunicationErr:
@@ -90,11 +90,11 @@ Check the exit code to know if the app was found and/or launched.
     case kLSIncompatibleSystemVersionErr:
       print(prefix, "'\(app)' can't run on this version of macOS.", to: &standardError)
     case kLSNoLaunchPermissionErr:
-      print(prefix, "You don't have permission to launch '\(app)' (on a managed network).", to: &standardError)
+      print(prefix, "You don't have permission to launch '\(app)'.", to: &standardError)
     case kLSNoExecutableErr:
       print(prefix, "'\(app)' is corrupted and can't be run.", to: &standardError)
     case kLSNoClassicEnvironmentErr:
-      print(prefix, "Classic apps like '\(app)' can no longer be run.", to: &standardError)
+      print(prefix, "Classic app '\(app)' can no longer be run.", to: &standardError)
     case kLSMultipleSessionsNotSupportedErr:
       print(prefix, "'\(app)' can't be run because another user is already running it.", to: &standardError)
 #endif
@@ -143,7 +143,7 @@ Check the exit code to know if the app was found and/or launched.
   }
 #else
   func url(forApp app: String) -> (OSStatus, CFURL?) {
-    let filename = "\(app).app" as! CFString
+    let filename = "\(app).app" as CFString
     var url: Unmanaged<CFURL>?
     // This is deprecated, but I don't know of any other macOS API that,
     // given a string "foo.app", will tell you where the app is.

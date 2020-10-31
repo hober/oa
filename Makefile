@@ -1,27 +1,65 @@
-.PHONY: build docs install clean pristine
+# -*- makefile-gmake -*-
 
-BINARY=.build/release/oa
+.PHONY: all clean distclean html install installdirs uninstall
 
-$(BINARY) build: Sources/oa/main.swift
-	swift build -c release
+SHELL = /bin/sh
 
-docs:
-	jazzy --output Documentation --min-acl internal
-
+# $(prefix) should default to /usr/local, but as this is a personal
+# project I default it to ~/$SYSNAME/bin, which is where I put personal
+# binaries.
 MACHTYPE = $(shell uname -m | tr '[:upper:]' '[:lower:]')
 OSTYPE = $(shell uname -s | tr '[:upper:]' '[:lower:]')
-PREFIX ?= ~/$(MACHTYPE)-$(OSTYPE)
-EXEC_PREFIX ?= $(PREFIX)
-BINDIR ?= $(EXEC_PREFIX)/bin
+prefix = ~/$(MACHTYPE)-$(OSTYPE)
 
-sign: $(BINARY)
-	codesign -s hober $(BINARY)
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
+srcdir = .
 
-install: $(BINARY) sign
-	cp $(BINARY) $(BINDIR)
+INSTALL = install -c
+INSTALL_PROGRAM = $(INSTALL)
+INSTALL_DATA = $(INSTALL) -m 644
+
+CODESIGN = codesign
+SWIFT = swift
+JAZZY = jazzy
+
+BUILD_DIR = .build/release
+BINARY=oa
+
+SRCS = Sources/oa/main.swift
+
+all: $(BUILD_DIR)/$(BINARY)
 
 clean:
-	rm -rf $(BINARY)*
+	rm -rf $(BUILD_DIR)/$(BINARY)*
 
-pristine:
-	rm -rf .build Documentation Package.resolved
+distclean: clean
+	rm -rf .build Documentation Package.resolved TAGS
+
+html: Documentation/index.html
+
+install: all installdirs
+	$(INSTALL_PROGRAM) $(BUILD_DIR)/$(BINARY) \
+		$(DESTDIR)$(bindir)/$(BINARY)
+
+installdirs:
+	mkdir -p $(DESTDIR)$(bindir)
+
+uninstall:
+	rm $(DESTDIR)$(bindir)/$(BINARY)
+
+$(BUILD_DIR)/$(BINARY): $(SRCS)
+	$(SWIFT) build -c release
+ifeq ($(shell uname -s),Darwin)
+	$(CODESIGN) -s hober $@
+endif
+
+Documentation/index.html: $(SRCS)
+ifeq ($(shell uname -s),Darwin)
+	$(JAZZY) --output Documentation --min-acl internal
+else
+	@echo "Can't build docs on Linux yet."
+endif
+
+TAGS: $(SRCS)
+	etags $(SRCS)

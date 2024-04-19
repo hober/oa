@@ -31,7 +31,9 @@ extension OpenApp {
                 contentsOf: URL(
                     fileURLWithPath:
                       NSString(string: filename).expandingTildeInPath))
-            return try TOMLDecoder().decode(Config.self, from: contents)
+            let decoder = TOMLDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode(Config.self, from: contents)
         } catch let error as NSError where error.code == 260 {
             // Missing config file is OK; you don't have to have one.
             return Config(

@@ -1,6 +1,6 @@
 # -*- makefile-gmake -*-
 
-.PHONY: all clean distclean docs install installdirs view-docs uninstall
+.PHONY: all clean distclean documentation install installdirs uninstall
 
 SHELL = /bin/sh
 
@@ -19,7 +19,6 @@ INSTALL_DATA = $(INSTALL) -m 644
 
 BUILD_DIR = .build/release
 BINARY=oa
-DOCCARCHIVE=.build/plugins/Swift-DocC/outputs/${BINARY}.doccarchive
 
 XCRUN = $(shell command -v xcrun 2>/dev/null)
 ETAGS = $(shell command -v etags 2>/dev/null)
@@ -55,16 +54,13 @@ clean:
 
 distclean: clean
 	$(SWIFT) package clean
-	rm -rf .build Package.resolved .swiftpm TAGS
+	rm -rf .build .swiftpm Package.resolved TAGS docs
 
-docs: $(DOCCARCHIVE)
+documentation: docs/documentation/$(BINARY)/index.html
 
 install: $(DESTDIR)$(bindir)/$(BINARY)
 
 installdirs: $(DESTDIR)$(bindir)
-
-view-docs:
-	open $(DOCCARCHIVE)
 
 uninstall:
 	rm $(DESTDIR)$(bindir)/$(BINARY)
@@ -72,11 +68,14 @@ uninstall:
 $(DESTDIR)$(bindir)/$(BINARY): $(DESTDIR)$(bindir) $(BUILD_DIR)/$(BINARY)
 	$(INSTALL_PROGRAM) $(BUILD_DIR)/$(BINARY) $(DESTDIR)$(bindir)/$(BINARY)
 
-$(DESTDIR)$(bindir):
+$(DESTDIR)$(bindir) docs:
 	mkdir -p $@
 
-$(DOCCARCHIVE): $(SRCS) $(DOCS)
-	$(SWIFT) package generate-documentation
+docs/documentation/$(BINARY)/index.html: docs $(SRCS) $(DOCS)
+	$(SWIFT) package --allow-writing-to-directory ./docs \
+		generate-documentation --target $(BINARY) \
+		--disable-indexing --transform-for-static-hosting \
+		--hosting-base-path $(BINARY) --output-path ./docs
 
 TAGS: $(SRCS)
 	$(ETAGS) $(SRCS)

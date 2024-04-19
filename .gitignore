@@ -1,0 +1,6 @@
+*~
+.build
+.swiftpm
+Documentation
+Package.resolved
+TAGS

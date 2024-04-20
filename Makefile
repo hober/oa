@@ -21,7 +21,7 @@ BUILD_DIR = .build/release
 BINARY=oa
 
 XCRUN = $(shell command -v xcrun 2>/dev/null)
-ETAGS = $(shell command -v etags 2>/dev/null)
+ETAGS = etags
 
 CERT = hober
 SECURITY = $(shell command -v security 2>/dev/null)
@@ -32,11 +32,7 @@ CODESIGN = $(shell command -v codesign 2>/dev/null)
 endif
 endif
 
-ifdef XCRUN
 SWIFT = $(XCRUN) swift
-else
-SWIFT = $(shell command -v swift 2>/dev/null)
-endif
 
 # SWIFTCARGS=-Xswiftc -enable-experimental-feature -Xswiftc AccessLevelOnImport
 SWIFTCARGS=

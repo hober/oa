@@ -2,6 +2,8 @@
 /* fileprivate */ import Darwin
 #elseif os(Linux)
 /* fileprivate */ import Glibc
+#elseif os(Windows)
+/* fileprivate */ import CRT
 #endif
 
 fileprivate struct StandardError: TextOutputStream {

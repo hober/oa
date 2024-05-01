@@ -39,10 +39,17 @@ fileprivate struct CommandNotFound: Error, CustomStringConvertible {
  - Parameter urls: file:/// URLs to each file to reveal.
  */
 internal func reveal(urls: [URL], withConfig config: Config) throws {
+    var fileManager = defaultLinuxFileManager
+
+    if let platform = config.linux {
+        if let manager = platform.fileManager {
+            fileManager = manager
+        }
+    }
+
     let process = Process()
 
-    process.executableURL = try locateApp(
-        byName: config.linuxFileManager ?? defaultLinuxFileManager)
+    process.executableURL = try locateApp(byName: fileManager)
     process.arguments = urls.map { $0.absoluteString }
     process.standardInput = FileHandle.nullDevice
     process.standardOutput = FileHandle.nullDevice

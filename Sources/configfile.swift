@@ -12,17 +12,77 @@ internal typealias Aliases = [String: String]
 
 /// A struct representing the contents of the user's `oa` config file.
 internal struct Config: Codable {
-    let linuxFileManager: String?
+    struct Platform: Codable {
+        /// Platform-specific aliases.
+        let aliases: Aliases?
+
+        /// Which file manager to use on this platform.
+        let fileManager: String?
+    }
 
     /// App aliases for things that are too long to type out by hand.
-    let aliases: Aliases
+    let aliases: Aliases?
+
+    /// Linux-specific configuration.
+    let linux: Platform?
+
+    /// Mac-specific configuration.
+    let macos: Platform?
+
+    /// Windows-specific configuration.
+    let windows: Platform?
+
+    init() {
+        linux = nil
+        macos = nil
+        windows = nil
+        aliases = [:]
+    }
+
+    func mergedAliases() -> Aliases {
+        var merged: Aliases = [:]
+
+        if let defaults = self.aliases {
+            for (key, value) in defaults {
+                merged[key] = value
+            }
+        }
+
+        #if os(macOS)
+        if let platform = self.macos {
+            if let aliases = platform.aliases {
+                for (key, value) in aliases {
+                    merged[key] = value
+                }
+            }
+        }
+        #elseif os(Linux)
+        if let platform = self.linux {
+            if let aliases = platform.aliases {
+                for (key, value) in aliases {
+                    merged[key] = value
+                }
+            }
+        }
+        #elseif os(Windows)
+        if let platform = self.windows {
+            if let aliases = platform.aliases {
+                for (key, value) in aliases {
+                    merged[key] = value
+                }
+            }
+        }
+        #endif
+
+    return merged
+}
 }
 
 extension OpenApp {
     /**
      Load the user's dotfile.
      - Parameter filename: path to the user's config file.
-     - Returns: App name aliases defined in the user's config file.
+     - Returns: The parsed contents of the user's config file.
      - Throws: Throws a ``ConfigFileError`` if it had trouble parsing the user's config file.
      */
     internal func loadUserConfig(from filename: String = "~/.oarc") throws -> Config {
@@ -36,9 +96,7 @@ extension OpenApp {
             return try decoder.decode(Config.self, from: contents)
         } catch let error as NSError where error.code == 260 {
             // Missing config file is OK; you don't have to have one.
-            return Config(
-                linuxFileManager: defaultLinuxFileManager,
-                aliases: [:])
+            return Config()
         } catch DecodingError.dataCorrupted(let context) {
             throw ConfigFileError(
                 description: describeDataCorruptionError(context, filename))

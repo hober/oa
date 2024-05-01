@@ -58,45 +58,41 @@ internal struct OpenApp: ParsableCommand {
         do {
             let config = try loadUserConfig()
 
-            let urls = try apps.map {
-                try locateApp(byName: config.aliases[$0] ?? $0)
-            }
+            #if os(macOS)
+            let launcher = try MacAppLauncher(
+                apps, withConfig: config, quietly: quiet)
+            #elseif os(Linux)
+            let launcher = try LinuxAppLauncher(
+                apps, withConfig: config, quietly: quiet)
+            #elseif os(Windows)
+            let launcher = try WindowsAppLauncher(
+                apps, withConfig: config, quietly: quiet)
+            #endif
 
-            if operation == .reveal {
-                try reveal(urls: urls, withConfig: config)
-                return
-            }
-
-            for (i, url) in urls.enumerated() {
-                if !quiet {
-                    print(operation.announcement(for: url.path))
-                }
-
-                if operation == .launch {
-                    do {
-                        try launchApp(byURL: url, withName: apps[i])
-                    } catch {
-                        throw error
-                    }
-                }
+            switch operation {
+            case .launch: try launcher.launchApps()
+            case .locate: try launcher.locateApps()
+            case .reveal: try launcher.revealApps()
             }
         } catch let dotfileProblem as ConfigFileError {
             // always complain about dotfile syntax errors
             log(error: dotfileProblem)
             throw ExitCode(1)
+        } catch let error as LauncherError {
+            if !quiet {
+                log(error: error)
+            }
+            switch error {
+            case .platformError(let code, _):
+                throw ExitCode(code)
+            default:
+                throw ExitCode(2)
+            }
         } catch {
             if !quiet {
                 log(error: error)
             }
-            #if os(macOS)
-            if let lsError = error as? LaunchServicesError {
-                throw ExitCode(lsError.status)
-            } else {
-                throw ExitCode(2)
-            }
-            #else
             throw ExitCode(3)
-            #endif
         }
     }
 }
@@ -128,22 +124,5 @@ extension Operation {
         case .locate: "Print the filesystem paths to each app."
         case .reveal: "Reveal each app in Finder."
         }
-    }
-
-    /**
-     Generate a human-readable string for applying this operation to the
-     given app.
-     - Parameter path: a path to an app.
-     - Returns: a human-readable string describing this operation as
-       applied to the given app.
-     */
-    @_documentation(visibility: private)
-    func announcement(for path: String) -> String {
-        let label = switch self {
-        case .launch: "Launching "
-        case .locate: ""
-        case .reveal: "Revealing "
-        }
-        return label + path
     }
 }

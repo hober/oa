@@ -2,7 +2,7 @@
 import Foundation
 typealias ErrorCode = OSStatus
 #elseif os(Linux)
-typealias ErrorCode = Int
+typealias ErrorCode = Int32
 #elseif os(Windows)
 typealias ErrorCode = HRESULT
 #endif
@@ -16,15 +16,20 @@ protocol AppLauncher {
 
 enum LauncherError: Error, CustomStringConvertible {
     case commandNotFound(String)
-    // ErrorCode needs to be defined in each platform's file
+    case missingFileManager(String)
     case platformError(ErrorCode, any CustomStringConvertible)
+    case unknown((any Error)?)
 
     var description: String {
         switch self {
         case .commandNotFound(let app):
             return "command not found: \(app)"
+        case .missingFileManager(let fileManager):
+            return "file manager not found: \(fileManager)"
         case .platformError(_, let underlying):
             return underlying.description
+        case .unknown(let underlying):
+            return "an unknown error occurred: \(String(describing: underlying))"
         }
     }
 }
